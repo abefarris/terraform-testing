@@ -54,3 +54,5 @@ terraform.rc
 
 # Ignore Terraform lock file (optional - some teams prefer to commit this)
 # .terraform.lock.hcl
+
+backend.hcl

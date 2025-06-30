@@ -1,0 +1,57 @@
+name: 'Terraform with Working Directory'
+
+on:
+  push:
+    branches: [ "main" ]
+    paths: [ "*.tf", "tests/**" ]  # Only run when Terraform files change
+  pull_request:
+    branches: [ "main" ]
+    paths: [ "*.tf", "tests/**" ]
+  workflow_dispatch: 
+
+# Terraform files are in root directory
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_REGION }}
+        role-session-name: GitHubActions-${{ github.run_id }}
+        role-duration-seconds: 3600
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.6.0"
+
+    - name: Terraform Init
+      run: terraform init
+        -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+        -backend-config="key=${{ secrets.TF_STATE_KEY }}"
+        -backend-config="region=${{ secrets.AWS_REGION }}"
+
+    - name: Terraform Validate
+      run: terraform validate
+
+    - name: Terraform Plan
+      run: terraform plan
+
+    - name: Terraform Test
+      run: terraform test
+
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve
